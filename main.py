@@ -1,5 +1,5 @@
 from typing import Annotated, Union
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query,status
 from sqlmodel import Field, SQLModel,create_engine, select,Session
 
 class BlogBase(SQLModel):
@@ -58,7 +58,7 @@ def read_blog(blog_id: int,session: SessionDep):
     return  blog
 
 
-@app.post('/blogs', response_model=BlogPublic)
+@app.post('/blogs', response_model=BlogPublic, status_code=status.HTTP_201_CREATED)
 def create_blog(blog: BlogCreate,session:SessionDep):
     db_blog = Blog.model_validate(blog)
     session.add(db_blog)
@@ -66,7 +66,7 @@ def create_blog(blog: BlogCreate,session:SessionDep):
     session.refresh(db_blog)
     return db_blog
 
-@app.delete("/blogs/{blog_id}")
+@app.delete("/blogs/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_hero(blog_id: int, session: SessionDep):
     blog = session.get(Blog,blog_id)
     if not blog:
