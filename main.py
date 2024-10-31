@@ -1,6 +1,8 @@
 from typing import Annotated, Union
 from fastapi import Depends, FastAPI, HTTPException, Query,status
 from sqlmodel import Field, SQLModel,create_engine, select,Session
+from passlib.context import CryptContext
+
 
 class BlogBase(SQLModel):
     title: str = Field(index = True)
@@ -21,6 +23,34 @@ class BlogUpdate(BlogBase):
     title: Union[str,None]  = None
     description: Union[str,None]  = None
     published: Union[bool,None]  = None
+    
+class UserBase(SQLModel):
+    username: str 
+    email: str
+    fullname: Union[str,None]
+    
+class User(UserBase, table=True):
+    password:str
+    id:int = Field(default=None,primary_key=True)
+    disabled: Union[bool,None]
+    
+class UserPublic(UserBase):
+    id:int
+
+class UserCreate(UserBase):
+    disabled: bool = Field(default=True)
+    password:str
+    
+    
+### Hashing utilities
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -86,6 +116,18 @@ def update_hero(blog_id: int, blog: BlogUpdate, session: SessionDep):
     session.commit()
     session.refresh(blog_db)
     return blog_db
+
+
+@app.post("/users",response_model=UserPublic, status_code=status.HTTP_201_CREATED)
+def create_user(user: UserCreate, session:SessionDep):
+    db_user = User.model_validate(user)
+    hashedPassword = get_password_hash(db_user.password)
+    new_user = User(username=db_user.username, email=db_user.email,password=hashedPassword, fullname=db_user.fullname,disabled=db_user.disabled)
+    session.add(new_user)
+    session.commit()
+    session.refresh(new_user)
+    return new_user
+
 
 
 
